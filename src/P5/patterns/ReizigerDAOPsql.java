@@ -18,6 +18,12 @@ public class ReizigerDAOPsql implements ReizigerDAO {
         this.ovdao = new OVChipkaartDAOPsql(this.conn, this);
     }
 
+    public ReizigerDAOPsql(Connection conn, OVChipkaartDAOPsql ovdao) {
+        this.conn = conn;
+        this.adao = new AdresDAOPsql(this.conn, this);
+        this.ovdao = ovdao;
+    }
+
     public AdresDAOPsql getAdao() {
         return adao;
     }

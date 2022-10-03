@@ -1,8 +1,6 @@
 package P5;
 
-import P5.domein.Adres;
-import P5.domein.OVChipkaart;
-import P5.domein.Reiziger;
+import P5.domein.*;
 import P5.patterns.*;
 
 import java.sql.Connection;
@@ -15,15 +13,18 @@ public class Main {
     private static Connection connection;
 
     public static void main(String[] args) {
-        //TODO: voor p5 efficientie van query calls in reizigerdaopsql verbeteren
-        //minder vaak de database aanroepen voor de functies geimplementeerd in eerdere practica (p2/p3)
         try {
             getConnection();
-            ReizigerDAOPsql rd = new ReizigerDAOPsql(connection);
-            OVChipkaartDAOPsql ovdao = rd.getOvdao();
-//            testReizigerDAO(rd);
-//            testAdresDAO(adao, rd);
-            testOVDAO(rd, ovdao);
+            ReizigerDAOPsql rdao = new ReizigerDAOPsql(connection);
+            AdresDAOPsql adao = rdao.getAdao();
+            OVChipkaartDAOPsql ovdao = rdao.getOvdao();
+            ProductDAOPsql pdao = ovdao.getPdao();
+            pdao.setOvdao(ovdao);
+
+//            testReizigerDAO(rdao);
+//            testAdresDAO(adao, rdao);
+//            testOVDAO(rdao, ovdao);
+            testProductDAO(rdao, ovdao, pdao);
             closeConnection();
         } catch (Exception e) {
             e.printStackTrace();
@@ -144,7 +145,7 @@ public class Main {
     }
 
     private static void testOVDAO(ReizigerDAO rdao, OVChipkaartDAO ovdao){
-        System.out.println("-------------REIZIGERDAO TEST---------------");
+        System.out.println("-------------OVDAO TEST---------------");
         Reiziger r1 = new Reiziger(100, "voor1", null,"achter1", Date.valueOf("2000-01-01"));
         OVChipkaart ov1 = new OVChipkaart(1, Date.valueOf("2022-09-16"), 2, 5.00);
         OVChipkaart ov2 = new OVChipkaart(2, Date.valueOf("2022-11-25"), 1, 254.00);
@@ -177,6 +178,56 @@ public class Main {
         System.out.println(r3);
         System.out.println(r3.getOvList());
         System.out.println("deleting reiziger: " + rdao.delete(r3));
+    }
+
+    private static void testProductDAO(ReizigerDAOPsql rdao, OVChipkaartDAOPsql ovdao, ProductDAOPsql pdao) {
+        Reiziger r1 = new Reiziger(100, "voor1", null,"achter1", Date.valueOf("2000-01-01"));
+        OVChipkaart ov1 = new OVChipkaart(1, Date.valueOf("2022-09-16"), 2, 5.00);
+        OVChipkaart ov2 = new OVChipkaart(2, Date.valueOf("2022-11-25"), 1, 254.00);
+        Product p1 = new Product(50, "product1", "beschrijving1", 20.00);
+        Product p2 = new Product(51, "product2", "beschrijving2", 25.00);
+        ov1.tryAddProduct(p1);
+        ov2.tryAddProduct(p2);
+        r1.tryAddOVChipkaart(ov1);
+        r1.tryAddOVChipkaart(ov2);
+
+        System.out.println("We have 2 ov's and 2 producten:");
+        System.out.println(p1);
+        System.out.println(p2);
+        System.out.println(ov1);
+        System.out.println(ov2);
+
+        System.out.println();
+        System.out.println("We will save reiziger, which should save everything else: " + rdao.save(r1));
+        System.out.println("findbyOV voor ov1 geeft:");
+        List<Product> productList = pdao.findByOVChipkaart(ov1);
+        System.out.println(productList);
+
+        System.out.println();
+        productList.get(0).setNaam("Updated product");
+        System.out.println("Try to update naam van p1: " + pdao.update(productList.get(0)));
+
+        System.out.println("Opnieuw ophalen van p1 door findbyOV:");
+        System.out.println(pdao.findByOVChipkaart(ov1));
+
+        System.out.println();
+        System.out.println("Lastly deleting reiziger should cascade delete all associated ov");
+        System.out.println("handmatig verwijderen van producten p1 en p2 erna");
+        System.out.println(pdao.findAll());
+
+        System.out.println(rdao.delete(r1));
+
+        System.out.println(pdao.findAll());
+        System.out.println(pdao.delete(p1));
+        System.out.println(pdao.delete(p2));
+
+        System.out.println();
+        System.out.println("UNFIXED BUG:");
+        System.out.println("Om de een of andere reden, als ik een reiziger verwijder, verwijdert hij ook");
+        System.out.println("de gelinkte producten van de gelinkte ov's. ");
+        System.out.println("Na debuggen en analyse vind ik in rdao.delete() echter geen (verborgen) call naar pdao.delete()");
+        System.out.println("En volgens Intellij usages zijn de enige calls naar pdao.delete() de twee laatste testlines hierboven");
+        System.out.println("Ik heb geen idee wat hier gebeurt.");
     }
 }
 

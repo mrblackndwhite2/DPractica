@@ -25,6 +25,7 @@ public class Product {
 
     public void setProductnummer(int productnummer) {
         this.productnummer = productnummer;
+        onChange();
     }
 
     public String getNaam() {
@@ -33,6 +34,7 @@ public class Product {
 
     public void setNaam(String naam) {
         this.naam = naam;
+        onChange();
     }
 
     public String getBeschrijving() {
@@ -41,6 +43,7 @@ public class Product {
 
     public void setBeschrijving(String beschrijving) {
         this.beschrijving = beschrijving;
+        onChange();
     }
 
     public double getPrijs() {
@@ -49,9 +52,28 @@ public class Product {
 
     public void setPrijs(double prijs) {
         this.prijs = prijs;
+        onChange();
     }
 
-    // DO NOT CALL YOURSELF, USE OVCHIPKAART ADD INSTEAD
+    public List<OVChipkaart> getKoppelingen() {
+        return koppelingen;
+    }
+
+    void ovUpdate(OVChipkaart ov) {
+        for (int i = 0; i < koppelingen.size(); i++) {
+            if (koppelingen.get(i).getKaartnummer() == ov.getKaartnummer()) {
+                koppelingen.set(i, ov);
+                return;
+            }
+        }
+    }
+
+    private void onChange() {
+        for (OVChipkaart ov : koppelingen) {
+            ov.productUpdate(this);
+        }
+    }
+
     // tries to add ov. To update ov, do tryDelete first, then tryAdd it back
     public boolean tryAddOv(OVChipkaart ov) {
         if (ov == null) {
@@ -59,15 +81,29 @@ public class Product {
         }
 
         if (koppelingen.contains(ov)) {
-            System.out.println("OV-chipkaart al gekoppeld");
+//            System.out.println("OV-chipkaart al gekoppeld");
             return false;
         }
 
+        for (int i = 0; i < koppelingen.size(); i++) {
+            // case: product al toegevoegd maar aangepast
+            if (koppelingen.get(i).getKaartnummer() == ov.getKaartnummer()) {
+                koppelingen.remove(i);
+                koppelingen.add(ov);
+//                System.out.println("ov succesvol gekoppeld aan product");
+                ov.tryAddProduct(this);
+                onChange();
+                return true;
+            }
+        }
+
         koppelingen.add(ov);
+//        System.out.println("ov succesvol gekoppeld aan product");
+        ov.tryAddProduct(this);
+        onChange();
         return true;
     }
 
-    // DO NOT CALL YOURSELF, USE OVCHIPKAART DELETE INSTEAD
     // Deletes ov with same kaartnummer as arg
     public boolean tryDeleteOv(OVChipkaart ov) {
         if (koppelingen.isEmpty()) {
@@ -80,12 +116,16 @@ public class Product {
 
         if (koppelingen.contains(ov)) {
             koppelingen.remove(ov);
+            ov.tryDeleteProduct(this);
+            onChange();
             return true;
         }
 
         for (int i = 0; i < koppelingen.size(); i++) {
             if (koppelingen.get(i).getKaartnummer() == ov.getKaartnummer()) {
                 koppelingen.remove(i);
+                ov.tryDeleteProduct(this);
+                onChange();
                 return true;
             }
         }
@@ -96,12 +136,13 @@ public class Product {
 
     @Override
     public String toString() {
-        return "Product{" +
-                "productnummer=" + productnummer +
-                ", naam='" + naam + '\'' +
-                ", beschrijving='" + beschrijving + '\'' +
-                ", prijs=" + prijs +
-                '}';
+        String result = "Product #%d %s : %s (%.2f)\nlinkedOV: [";
+        for (OVChipkaart ov : koppelingen) {
+            result += ov.getKaartnummer();
+            result += ", ";
+        }
+        result += "]";
+        return String.format(result, productnummer, naam, beschrijving, prijs);
     }
 
     @Override
@@ -109,11 +150,14 @@ public class Product {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Product product = (Product) o;
-        return Double.compare(product.prijs, prijs) == 0 && naam.equals(product.naam) && Objects.equals(beschrijving, product.beschrijving);
+        return productnummer == product.productnummer &&
+                Double.compare(product.prijs, prijs) == 0 &&
+                naam.equals(product.naam) &&
+                beschrijving.equals(product.beschrijving);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(naam, beschrijving, prijs);
+        return Objects.hash(productnummer, naam, beschrijving, prijs);
     }
 }

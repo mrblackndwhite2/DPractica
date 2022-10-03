@@ -39,6 +39,7 @@ public class OVChipkaart {
 
     public void setKaartnummer(int kaartnummer) {
         this.kaartnummer = kaartnummer;
+        onChange();
     }
 
     public Date getVervaldatum() {
@@ -47,6 +48,7 @@ public class OVChipkaart {
 
     public void setVervaldatum(Date vervaldatum) {
         this.vervaldatum = vervaldatum;
+        onChange();
     }
 
     public int getKlasse() {
@@ -55,6 +57,7 @@ public class OVChipkaart {
 
     public void setKlasse(int klasse) {
         this.klasse = klasse;
+        onChange();
     }
 
     public double getSaldo() {
@@ -63,6 +66,7 @@ public class OVChipkaart {
 
     public void setSaldo(double saldo) {
         this.saldo = saldo;
+        onChange();
     }
 
     public Reiziger getReiziger() {
@@ -71,6 +75,31 @@ public class OVChipkaart {
 
     public void setReiziger(Reiziger reiziger) {
         this.reiziger = reiziger;
+        onChange();
+    }
+
+    public List<Product> getProducten() {
+        return producten;
+    }
+
+    public void setProducten(List<Product> producten) {
+        this.producten = producten;
+    }
+
+    // overwrites old versions of OV in every linked product
+    void productUpdate(Product p) {
+        for (int i = 0; i < producten.size(); i++) {
+            if (producten.get(i).getProductnummer() == p.getProductnummer()) {
+                producten.set(i, p);
+                return;
+            }
+        }
+    }
+
+    private void onChange() {
+        for (Product p : producten) {
+            p.ovUpdate(this);
+        }
     }
 
     public boolean tryAddProduct(Product p) {
@@ -80,7 +109,9 @@ public class OVChipkaart {
 
         if (producten.isEmpty()) {
             producten.add(p);
+//            System.out.println("product succesvol gekoppeld aan ov");
             p.tryAddOv(this);
+            onChange();
             return true;
         }
 
@@ -88,12 +119,14 @@ public class OVChipkaart {
             // case: product al toegevoegd maar aangepast
             if (producten.get(i).getProductnummer() == p.getProductnummer()) {
                 if (producten.get(i).equals(p)) {
-                    System.out.println("Product al gekoppeld aan ov");
+//                    System.out.println("Product al gekoppeld aan ov");
                     return false;
                 } else {
                     producten.remove(i);
                     producten.add(p);
+//                    System.out.println("product succesvol gekoppeld aan ov");
                     p.tryAddOv(this);
+                    onChange();
                     return true;
                 }
             }
@@ -101,7 +134,9 @@ public class OVChipkaart {
 
         // if we get here, that means no product with same id is added, so safe to add
         producten.add(p);
+//        System.out.println("product succesvol gekoppeld aan ov");
         p.tryAddOv(this);
+        onChange();
         return true;
     }
 
@@ -116,8 +151,9 @@ public class OVChipkaart {
 
         for (int i = 0; i < producten.size(); i++) {
             if (producten.get(i).getProductnummer() == p.getProductnummer()) {
-                producten.get(i).tryDeleteOv(this);
                 producten.remove(i);
+                p.tryDeleteOv(this);
+                onChange();
                 return true;
             }
         }
@@ -127,8 +163,14 @@ public class OVChipkaart {
 
     @Override
     public String toString() {
-        return String.format("OV#%d varvalt op %s. %de klasse en saldo van %.2f is van reiziger#%d",
-                kaartnummer, vervaldatum.toString(), klasse, saldo, reiziger.getId());
+        String result = "OV#%d vervalt op %s, %de klasse, €%.2f saldo van reiziger#%d\n" +
+                "producten: [";
+        for (Product p : producten) {
+            result+=p.getNaam();
+            result+=", ";
+        }
+        result+="]";
+        return String.format(result, kaartnummer, vervaldatum.toString(), klasse, saldo, reiziger.getId());
     }
 
     @Override
@@ -138,13 +180,12 @@ public class OVChipkaart {
         OVChipkaart that = (OVChipkaart) o;
         return kaartnummer == that.kaartnummer &&
                 klasse == that.klasse &&
-                Double.compare(that.saldo, saldo) == 0 &&
                 vervaldatum.equals(that.vervaldatum) &&
                 Objects.equals(reiziger, that.reiziger);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(kaartnummer, vervaldatum, klasse, saldo, reiziger);
+        return Objects.hash(kaartnummer, vervaldatum, klasse, reiziger);
     }
 }
